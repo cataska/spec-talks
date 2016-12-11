@@ -1,0 +1,287 @@
+#+TITLE: 當我們討論 spec 我們討論的是？
+#+SUBTITLE: 談談 clojure.spec
+#+AUTHOR: lovecankill
+
+# ======= Appear in thank-you-slide ================
+#+GITHUB: http://github.com/cataska
+
+# ======= Appear under each slide ==================
+#+FAVICON: images/clojuretw-logo.png
+#+ICON: images/clojuretw-logo.png
+#+HASHTAG: 談談 clojure.spec
+
+# ======= Google Analytics =========================
+#+ANALYTICS: UA-000000000-0
+
+#+OPTIONS: toc:nil num:nil ^:nil
+
+* 關於 clojure.spec
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 什麼是 clojure.spec
+#+ATTR_HTML: :class build
+- Clojure 1.9 的新功能
+- 以 Spec 爲基礎。Spec 是一組描述資料何者正確的規則
+- Spec 可以任意組合
+- 驗證資料、函式與巨集
+- 產生符合 Spec 的測試資料
+- 明確的錯誤報告
+
+* 使用 clojure.spec 之前
+將以下片段加入 *project.clj* ：
+#+BEGIN_SRC clojure
+ ;; Leiningen
+[org.clojure/clojure "1.9.0-alpha14"]
+#+END_SRC
+
+#+BEGIN_SRC clojure
+;; Boot
+(set-env!
+  :dependencies '[[org.clojure/clojure "1.9.0-alpha14"]])
+#+END_SRC
+
+將以下片段加入 namespace：
+#+BEGIN_SRC clojure
+(:require [clojure.spec :as s])
+#+END_SRC
+
+* 開始使用 clojure spec
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* Predicates 可以當作 spec
+Predicate function：接受一個參數的函數，傳回值爲布林值
+
+#+BEGIN_SRC clojure
+even?
+int?
+double?
+nil?
+string?
+#(> % 5)
+#+END_SRC
+
+* Conform
+接受一個 spec 與一個值，如果值符合 spec 則傳回值，否則傳回 s/invalid
+
+#+BEGIN_SRC clojure
+(s/conform even? 1000) ;;=> 1000
+#+END_SRC
+
+* Valid
+與 conform 一樣接受 spec 與一個值當作參數，與 conform 不同的是會傳回布林值
+
+#+BEGIN_SRC clojure
+(s/valid? nil? nil)  ;; true
+(s/valid? string? "abc")  ;; true
+
+(s/valid? #(> % 5) 10) ;; true
+(s/valid? #(> % 5) 0) ;; false
+
+(import java.util.Date)
+(s/valid? inst? (Date.))  ;; true
+#+END_SRC
+
+* Set 也可以是 spec
+#+BEGIN_SRC clojure
+(s/valid? #{:club :diamond :heart :spade} :club) ;; true
+(s/valid? #{:club :diamond :heart :spade} 42) ;; false
+
+(s/valid? #{42} 42) ;; true
+#+END_SRC
+
+* 定義自己的 spec
+- Spec 中儲存全域 spec 的地方稱爲 Registry
+- 使用 =s/def= 可以定義自己的 spec 到 Registry
+
+#+BEGIN_SRC clojure
+(s/def ::date inst?)
+(s/def ::suit #{:club :diamond :heart :spade})
+#+END_SRC
+
+* Keywords 與它們的 Namespace
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 一般的 Keyword
+#+BEGIN_SRC clojure
+:harry ;; => :harry
+(keyword "harry") ;; => :harry
+#+END_SRC
+
+* 有 Namespace 的 Keyword
+#+BEGIN_SRC clojure
+:hogwarts/harry ;; => :hogwarts/harry
+(keyword "hogwarts" "harry") ;; => :hogwarts/harry
+#+END_SRC
+
+* 更便捷的寫法
+#+BEGIN_SRC clojure
+;; in ns hogwarts
+::harry ;; => :hogwarts/harry
+(= ::harry :hogwarts/harry) ;; => true
+#+END_SRC
+
+* 繼續使用 clojure.spec
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* Explain
+提供清楚的錯誤報告
+
+#+BEGIN_SRC clojure
+(s/explain ::suit 42)
+;; val: 42 fails spec: ::suit predicate: #{:spade :heart :diamond :club}
+#+END_SRC
+
+另外還有 =explain-str= 與 =explain-data=
+
+* 將多個 predicate 組合成 spec
+=s/and=
+
+#+BEGIN_SRC clojure
+(s/def ::big-even (s/and int? even? #(> % 1000)))
+
+(s/valid? ::big-even :foo) ;; false
+(s/valid? ::big-even 10) ;; false
+(s/valid? ::big-even 100000) ;; true
+#+END_SRC
+
+* 將多個 predicate 組合成 spec
+=s/or=
+
+#+BEGIN_SRC clojure
+(s/def ::name-or-id (s/or :name string?
+                          :id   int?))
+
+(s/valid? ::name-or-id "abc") ;; true
+(s/valid? ::name-or-id 100) ;; true
+(s/valid? ::name-or-id :foo) ;; false
+
+(s/conform ::name-or-id "abc") ;;=> [:name "abc"]
+(s/conform ::name-or-id 100) ;;=> [:id 100]
+#+END_SRC
+
+* 檢查資料是否符合某種資料結構
+=coll-of=
+
+檢查不固定長度的 Collection
+
+#+BEGIN_SRC clojure
+(s/conform (s/coll-of keyword?) [:a :b :c]) ;;=> [:a :b :c]
+(s/conform (s/coll-of number?) #{5 10 2}) ;;=> #{2 5 10}
+#+END_SRC
+
+* 檢查資料是否符合某種資料結構
+=tuple-of=
+
+檢查固定長度的 Collection
+
+#+BEGIN_SRC clojure
+(s/conform (s/tuple double? double? double?) [1.0 2.0 3.0])
+;;=> [1.0, 2.0, 3.0]
+(s/conform (s/tuple double? double? double?) [1.0 2.0 3.0 4.0])
+;;=> s/invalid
+#+END_SRC
+
+* 檢查資料是否符合某種資料結構
+=map-of=
+
+檢查 Map
+
+#+BEGIN_SRC clojure
+(s/def ::scores (s/map-of string? int?))
+(s/conform ::scores {"Sally" 1000, "Joe" 500})
+;=> {"Sally" 1000, "Joe" 500}
+#+END_SRC
+
+* 產生測試資料
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 將 test.check 加入專案
+因爲產生測試資料會使用到 test.check 這個函式庫，所以記得將它加入專案
+
+#+BEGIN_SRC clojure
+;; Leiningen
+:profiles {:dev {:dependencies [[org.clojure/test.check "0.9.0"]]}}
+#+END_SRC
+
+#+BEGIN_SRC clojure
+;; Boot
+(set-env!
+  :dependencies '[[org.clojure/test.check "0.9.0" :scope "test"]])
+#+END_SRC
+
+* Excercise
+產生一連串符合 spec 的測試資料
+
+#+BEGIN_SRC clojure
+(s/exercise ::suit)
+;; ([:heart :heart] [:heart :heart] [:spade :spade]
+;;  [:diamond :diamond] [:diamond :diamond] [:spade :spade]
+;;  [:club :club] [:diamond :diamond] [:spade :spade] [:club :club])
+
+#+END_SRC
+
+* 建立產生器
+#+BEGIN_SRC clojure
+(s/gen int?)
+(s/gen string?)
+#+END_SRC
+
+* 由產生器產生資料
+由產生器產生單一資料
+#+BEGIN_SRC clojure
+(gen/generate (s/gen int?)) ;; -124
+(gen/generate (s/gen string?)) ;; "ztg6Q064P4tBS758dt2k7F5Qa0Z"
+#+END_SRC
+
+由產生器產生一連串資料
+#+BEGIN_SRC clojure
+(gen/sample (s/gen int?))
+;; (-1 0 -1 1 -5 7 0 -36 -4 13)
+(gen/sample (s/gen string?))
+;; ("" "7" "7" "0SF" "1sJO" "EE7L" "7" "50" "2G4wNNO" "7G223cq")
+#+END_SRC
+
+* 待續
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 總結
+- Clojure 1.9 的新功能 clojure.spec
+- Spec 是一組描述資料何者正確的規則
+- 驗證資料結構類型
+- 任意組合
+- 測試資料生成
+
+* 參考資料
+- [[http://clojure.org/about/spec][clojure.spec - Rationale and Overview]]
+- [[http://clojure.org/guides/spec][spec Guide]]
+
+* Thank you
+  :PROPERTIES:
+  :SLIDE:    thank-you-slide segue
+  :ASIDE:    right
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
