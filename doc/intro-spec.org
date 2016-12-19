@@ -6,8 +6,8 @@
 #+GITHUB: http://github.com/cataska
 
 # ======= Appear under each slide ==================
-#+FAVICON: images/clojuretw-logo.png
-#+ICON: images/clojuretw-logo.png
+#+FAVICON: images/clojure-logo.png
+#+ICON: images/clojure-logo.png
 #+HASHTAG: 談談 clojure.spec
 
 # ======= Google Analytics =========================
@@ -25,8 +25,8 @@
 * 什麼是 clojure.spec
 #+ATTR_HTML: :class build
 - Clojure 1.9 的新功能
-- 以 Spec 爲基礎。Spec 是一組描述資料何者正確的規則
-- Spec 可以任意組合
+- 以 spec 爲基礎，spec 是一組描述資料何者正確的規則
+- 任意組合 spec
 - 驗證資料、函式與巨集
 - 產生符合 Spec 的測試資料
 - 明確的錯誤報告
@@ -79,14 +79,11 @@ string?
 與 conform 一樣接受 spec 與一個值當作參數，與 conform 不同的是會傳回布林值
 
 #+BEGIN_SRC clojure
-(s/valid? nil? nil)  ;; true
-(s/valid? string? "abc")  ;; true
+(s/valid? nil? nil) ;; true
+(s/valid? string? "abc") ;; true
 
 (s/valid? #(> % 5) 10) ;; true
 (s/valid? #(> % 5) 0) ;; false
-
-(import java.util.Date)
-(s/valid? inst? (Date.))  ;; true
 #+END_SRC
 
 * Set 也可以是 spec
@@ -128,6 +125,7 @@ string?
 * 更便捷的寫法
 #+BEGIN_SRC clojure
 ;; in ns hogwarts
+(ns hogwarts)
 ::harry ;; => :hogwarts/harry
 (= ::harry :hogwarts/harry) ;; => true
 #+END_SRC
@@ -186,7 +184,7 @@ string?
 #+END_SRC
 
 * 檢查資料是否符合某種資料結構
-=tuple-of=
+=tuple=
 
 檢查固定長度的 Collection
 
@@ -229,7 +227,7 @@ string?
   :dependencies '[[org.clojure/test.check "0.9.0" :scope "test"]])
 #+END_SRC
 
-* Excercise
+* Exercise
 產生一連串符合 spec 的測試資料
 
 #+BEGIN_SRC clojure
@@ -240,13 +238,13 @@ string?
 
 #+END_SRC
 
-* 建立產生器
+* Generators
 #+BEGIN_SRC clojure
 (s/gen int?)
 (s/gen string?)
 #+END_SRC
 
-* 由產生器產生資料
+* 由 Generator 產生資料
 由產生器產生單一資料
 #+BEGIN_SRC clojure
 (gen/generate (s/gen int?)) ;; -124
@@ -261,19 +259,20 @@ string?
 ;; ("" "7" "7" "0SF" "1sJO" "EE7L" "7" "50" "2G4wNNO" "7G223cq")
 #+END_SRC
 
+* 總結
+#+ATTR_HTML: :class build
+- Clojure 1.9 的新功能 clojure.spec
+- Spec 是一組描述資料何者正確的規則
+- 驗證資料結構類型
+- 任意組合
+- 測試資料生成
+
 * 待續
   :PROPERTIES:
   :SLIDE:    segue dark quote
   :ASIDE:    right bottom
   :ARTICLE:  flexbox vleft auto-fadein
   :END:
-
-* 總結
-- Clojure 1.9 的新功能 clojure.spec
-- Spec 是一組描述資料何者正確的規則
-- 驗證資料結構類型
-- 任意組合
-- 測試資料生成
 
 * 參考資料
 - [[http://clojure.org/about/spec][clojure.spec - Rationale and Overview]]
