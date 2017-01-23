@@ -80,7 +80,7 @@
 
 #+BEGIN_SRC clojure
 (s/conform (s/+ keyword?) []) ;;=> :clojure.spec/invalid
-(s/conform (s/+ keyword?) [:a]) ;;-> [:a]
+(s/conform (s/+ keyword?) [:a]) ;;=> [:a]
 (s/conform (s/+ keyword?) [:a :b]) ;;=> [:a :b]
 #+END_SRC
 
