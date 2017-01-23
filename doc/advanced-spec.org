@@ -1,0 +1,287 @@
+#+TITLE: 關於 spec，我說的其實是...
+#+SUBTITLE: 進階 clojure.spec
+#+AUTHOR: lovecankill
+
+# ======= Appear in thank-you-slide ================
+#+GITHUB: http://github.com/cataska
+
+# ======= Appear under each slide ==================
+#+FAVICON: images/clojure-logo.png
+#+ICON: images/clojure-logo.png
+#+HASHTAG: 進階 clojure.spec
+
+# ======= Google Analytics =========================
+#+ANALYTICS: UA-86904776-4
+
+#+OPTIONS: toc:nil num:nil ^:nil
+
+* 前情提要
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* clojure.spec
+#+ATTR_HTML: :class build
+- Clojure 1.9 的新功能
+- Spec 是一組描述資料何者正確的規則
+- 驗證資料結構類型
+- 任意組合
+- 測試資料生成
+
+* 本次大綱
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 大綱
+- Sequences
+- Entity Map
+- Validation
+- Instrumentaion and Testing
+
+* Sequences
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 使用正規表達式，建立 spec 驗證連續資料
+- =cat=
+- =*=
+- =+=
+- =?=
+- =alt=
+
+* cat
+建立資料依序符合 predicates 的 spec
+
+#+BEGIN_SRC clojure
+(s/def ::ingredient (s/cat :quantity number? :unit keyword?))
+(s/conform ::ingredient [2 :teaspoon])
+;;=> {:quantity 2, :unit :teaspoon}
+#+END_SRC
+
+* *
+建立資料符合 predicate 零或多次的 spec
+
+#+BEGIN_SRC clojure
+(s/conform (s/* keyword?) []) ;;=> []
+(s/conform (s/* keyword?) [:a]) ;;=> [:a]
+(s/conform (s/* keyword?) [:a :b]) ;;=> [:a :b]
+#+END_SRC
+
+* +
+建立資料符合 predicate 一或多次的 spec
+
+#+BEGIN_SRC clojure
+(s/conform (s/+ keyword?) []) ;;=> :clojure.spec/invalid
+(s/conform (s/+ keyword?) [:a]) ;;-> [:a]
+(s/conform (s/+ keyword?) [:a :b]) ;;=> [:a :b]
+#+END_SRC
+
+* ?
+建立資料符合 predicate 零或一次的 spec
+
+#+BEGIN_SRC clojure
+(s/conform (s/? keyword?) []) ;;=> nil
+(s/conform (s/? keyword?) [:a]) ;;=> :a
+(s/conform (s/? keyword?) [:a :b]) ;;=> :clojure.spec/invalid
+#+END_SRC
+
+* alt
+建立資料符合多組 predicates 中其一的 spec
+
+#+BEGIN_SRC clojure
+(s/def ::config (s/*
+                  (s/cat :prop string?
+                         :val  (s/alt :s string? :b boolean?))))
+(s/conform ::config ["-server" "foo" "-verbose" true "-user" "joe"])
+;;=> [{:prop "-server", :val [:s "foo"]}
+;;    {:prop "-verbose", :val [:b true]}
+;;    {:prop "-user", :val [:s "joe"]}]
+#+END_SRC
+
+* Entity Map
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 定義給 Map 使用的 spec
+=s/keys=
+
+#+BEGIN_SRC clojure
+(def email-regex #"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$")
+(s/def ::email-type (s/and string? #(re-matches email-regex %)))
+
+(s/def ::acctid int?)
+(s/def ::first-name string?)
+(s/def ::last-name string?)
+(s/def ::email ::email-type)
+
+(s/def ::person (s/keys :req [::first-name ::last-name ::email]
+                        :opt [::phone]))
+#+END_SRC
+
+* 使用定義好的 spec 來驗證 Map
+#+BEGIN_SRC clojure
+(s/valid? ::person
+  {::first-name "Elon"
+   ::last-name "Musk"
+   ::email "elon@example.com"}) ;;=> true
+#+END_SRC
+
+* 使用定義好的 spec 來驗證 Map
+#+BEGIN_SRC clojure
+(s/explain ::person
+  {::first-name "Elon"})
+;;=> val: #:spec-talks.advanced{:first-name "Elon"}
+;;   fails spec: :spec-talks.advanced/person
+;;   predicate: (contains? % :spec-talks.advanced/last-name)
+;;
+;;   val: #:spec-talks.advanced{:first-name "Elon"}
+;;   fails spec: :spec-talks.advanced/person
+;;   predicate: (contains? % :spec-talks.advanced/email)
+#+END_SRC
+
+* 使用定義好的 spec 來驗證 Map
+#+BEGIN_SRC clojure
+(s/explain ::person
+  {::first-name "Elon"
+   ::last-name "Musk"
+   ::email "n/a"})
+;;=> In: [:spec-talks.advanced/email]
+;;   val: "n/a"
+;;   fails spec: :spec-talks.advanced/email-type
+;;   at: [:spec-talks.advanced/email]
+;;   predicate: (re-matches email-regex %)
+#+END_SRC
+
+* Validation
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 驗證資料
+使用 =s/assert= 驗證資料是否符合 spec
+
+#+BEGIN_SRC clojure
+(defn person-name
+  [person]
+  (let [p (s/assert ::person person)]
+    (str (::first-name p) " " (::last-name p))))
+
+(s/check-asserts true)
+(person-name 100)
+;;=> ExceptionInfo Spec assertion failed
+;;   val: 100 fails predicate: map?
+;;   :clojure.spec/failure  :assertion-failed
+;;   #:clojure.spec{:problems [{:path [], :pred map?, :val 100, :via [], :in []}],
+;;                  :failure :assertion-failed}
+#+END_SRC
+
+* 驗證函數 (1)
+使用 pre/post 與 clojure.spec 驗證參數與返回值
+
+#+BEGIN_SRC clojure
+(defn person-name
+  [person]
+  {:pre [(s/valid? ::person person)]
+   :post [(s/valid? string? %)]}
+  (str (::first-name person) " " (::last-name person)))
+
+(person-name 42)
+;;=> java.lang.AssertionError:
+;;   Assert failed: (s/valid? :spec-talks.advanced/person person)
+#+END_SRC
+
+* Instrumentaion and Testing
+  :PROPERTIES:
+  :SLIDE:    segue dark quote
+  :ASIDE:    right bottom
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
+
+* 使用之前
+將 =clojure.spec.test= 加入至 namespace
+
+第一種方法：
+#+BEGIN_SRC clojure
+(require '[clojure.spec.test :as stest])
+#+END_SRC
+
+第二種方法：
+#+BEGIN_SRC clojure
+(ns my.ns
+  (:require [clojure.spec.test :as stest]))
+#+END_SRC
+
+* 建立描述函數的 spec
+使用 =s/fdef= 建立函數 spec
+
+#+BEGIN_SRC clojure
+(s/fdef clojure.core/symbol
+  :args (s/alt :separate (s/cat :ns string? :n string?)
+               :str string?
+               :sym symbol?)
+  :ret symbol?)
+#+END_SRC
+
+* 驗證函數 (2)
+使用 =stest/instrument= 驗證參數
+
+#+BEGIN_SRC clojure
+(stest/instrument `symbol)
+(symbol 'foo)
+;;=> foo
+(symbol 1)
+;;=> ExceptionInfo Call to #'clojure.core/symbol did not conform to spec:
+;;   In: [0] val: 1 fails at: [:args :separate :ns] predicate: string?
+;;   In: [0] val: 1 fails at: [:args :str] predicate: string?
+;;   In: [0] val: 1 fails at: [:args :sym] predicate: symbol?
+;;   :clojure.spec/args  (1)
+;;   :clojure.spec/failure  :instrument
+#+END_SRC
+
+* 驗證函數 (3)
+使用 =stest/check= 自動產生符合 spec 的參數，來驗證返回值
+
+#+BEGIN_SRC clojure
+(stest/check `symbol)
+;;=> ({:spec #object[...],
+;;     :clojure.spec.test.check/ret {:result true,
+;;                                   :num-tests 1000,
+;;                                   :seed 1484554638749},
+;;     :sym clojure.core/symbol})
+#+END_SRC
+
+* 總結
+#+ATTR_HTML: :class build
+- 使用 Regex op 建立 spec 驗證 Sequences
+- 使用 keys 建立 spec 驗證 Map
+- 使用 fdef 建立函數的 spec
+- 使用 intrument 驗證參數
+- 使用 check 驗證返回值
+
+* 參考資料
+- [[http://clojure.org/guides/spec][spec Guide]]
+- [[http://arnebrasseur.net/talks/2016-clojutre/][Introduction clojure.spec]]
+- [[https://juxt.pro/blog/posts/parsing-routes-clojure-spec.html][Parsing routes with clojure spec]]
+- [[http://gigasquidsoftware.com/blog/2016/07/18/genetic-programming-with-clojure-dot-spec/][Genetic Programming With clojure.spec]]
+- [[http://blog.klipse.tech/clojure/2016/05/30/spec.html][Clojure 1.9 introduces clojure.spec: tutorial with live coding examples]]
+- [[https://www.youtube.com/playlist?list=PLZdCLR02grLrju9ntDh3RGPpWSWBvjwXg][Clojure spec Screencast Series]]
+
+* Thank you
+  :PROPERTIES:
+  :SLIDE:    thank-you-slide segue
+  :ASIDE:    right
+  :ARTICLE:  flexbox vleft auto-fadein
+  :END:
